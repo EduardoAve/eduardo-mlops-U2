@@ -7,3 +7,6 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+
+# Estadísticas de predicciones (datos generados en runtime; persistir vía volumen)
+data/
