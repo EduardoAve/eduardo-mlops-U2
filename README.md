@@ -39,6 +39,7 @@ eduardo-mlops-U2/
 └── app/
     ├── main.py            # Servicio Flask (web + API)
     ├── model.py           # Función predecir + estados
+    ├── estadisticas.py    # Registro y reporte de estadísticas
     ├── requirements.txt
     └── templates/
         └── index.html     # Formulario web
@@ -116,6 +117,60 @@ Respuesta:
 curl http://localhost:5000/health
 # {"status": "ok"}
 ```
+
+## Reporte de estadísticas
+
+Nuevo requerimiento (Unidad 2): los médicos pueden consultar un reporte con las
+estadísticas de las predicciones realizadas. Cada predicción se exporta a un
+archivo de texto (`data/predicciones.jsonl`, formato JSON Lines) y el servicio
+expone un endpoint para leerlo y retornarlo.
+
+Endpoint: `GET /estadisticas`
+
+```bash
+curl http://localhost:5000/estadisticas
+```
+
+El reporte incluye:
+
+- **Número total de predicciones por cada categoría** (las 5 categorías siempre
+  presentes, en 0 si no han ocurrido).
+- **Últimas 5 predicciones** realizadas (de la más reciente a la más antigua).
+- **Fecha de la última predicción**.
+
+Respuesta (ejemplo, tras 2 predicciones):
+
+```json
+{
+  "total_predicciones": 2,
+  "total_por_categoria": {
+    "NO ENFERMO": 1,
+    "ENFERMEDAD LEVE": 0,
+    "ENFERMEDAD AGUDA": 0,
+    "ENFERMEDAD CRÓNICA": 0,
+    "ENFERMEDAD TERMINAL": 1
+  },
+  "ultimas_5_predicciones": [
+    {"fecha": "2026-06-06T18:30:05+00:00", "entrada": {"fiebre": 41, "dolor": 10, "fatiga": 10, "duracion_dias": 200, "edad": 80}, "prediccion": "ENFERMEDAD TERMINAL"},
+    {"fecha": "2026-06-06T18:30:00+00:00", "entrada": {"fiebre": 36.5, "dolor": 0, "fatiga": 0}, "prediccion": "NO ENFERMO"}
+  ],
+  "fecha_ultima_prediccion": "2026-06-06T18:30:05+00:00"
+}
+```
+
+Si aún no se ha realizado ninguna predicción, los totales están en 0, la lista
+vacía y la fecha en `null`.
+
+### Persistencia de las estadísticas
+
+El archivo vive dentro del contenedor. Para conservarlo entre reinicios, monta
+un volumen en `/app/data`:
+
+```bash
+docker run --rm -p 5000:5000 -v "$(pwd)/data:/app/data" --name predictor eduardo-mlops-u2:latest
+```
+
+La ruta del archivo se puede cambiar con la variable de entorno `STATS_PATH`.
 
 ## Detalle de la función `predecir`
 
