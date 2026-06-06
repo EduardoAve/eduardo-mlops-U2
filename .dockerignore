@@ -9,3 +9,7 @@ venv
 docs/
 README.md
 *.md
+tests/
+.github/
+requirements-dev.txt
+data/

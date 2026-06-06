@@ -1,0 +1,61 @@
+name: CI - Main (pruebas + publicar imagen)
+
+# Evento (2): cada commit (push) en la rama main. Como main está protegida,
+# esto ocurre tras cada merge de un Pull Request.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pruebas:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt -r requirements-dev.txt
+
+      - name: Ejecutar pruebas unitarias
+        run: pytest -v
+
+  publicar-imagen:
+    name: Construir y publicar imagen Docker
+    needs: pruebas          # Solo publica si las pruebas pasaron.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Iniciar sesión en GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ghcr.io exige el nombre en minúsculas (owner/repo).
+      - name: Definir nombre de la imagen
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Construir y publicar la imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}

@@ -1,0 +1,43 @@
+name: CI - Pull Request
+
+# Evento (1): cada Pull Request realizado contra la rama main.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  pruebas:
+    name: Pruebas unitarias
+    runs-on: ubuntu-latest
+    steps:
+      # Avisa al creador del PR que el pipeline comenzó.
+      - name: Comentar inicio en el PR
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: "CI/CD en acción. Ejecutando tareas …"
+
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt -r requirements-dev.txt
+
+      - name: Ejecutar pruebas unitarias
+        run: pytest -v
+
+      # Solo se ejecuta si las pruebas pasaron: el PR queda listo para revisión.
+      - name: Comentar éxito en el PR
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: "CI/CD terminado con éxito."
