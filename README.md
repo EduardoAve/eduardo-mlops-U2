@@ -1,45 +1,133 @@
-# eduardo-mlops-U2
+# eduardo-mlops-U2 — Predictor de Enfermedades (Docker)
 
-Repositorio de la **Unidad 2** del curso de MLOps (Maestría). Aquí se lleva el
-control de versiones, el flujo de trabajo con GitHub y el pipeline de CI/CD del
-servicio de **predicción de enfermedades** desarrollado en la Unidad 1.
+Servicio dockerizado que expone una función `predecir` para clasificar el estado
+de un paciente a partir de sus síntomas. Es la solución desarrollada en la
+**Unidad 1** de MLOps, ahora versionada en GitHub con un flujo de trabajo
+profesional (ramas, Pull Requests y CI/CD) en la **Unidad 2**.
 
-## Problema
+## Problema y propósito
 
-Un médico necesita una herramienta que, a partir de los síntomas de un paciente
-(fiebre, dolor, fatiga, duración de los síntomas y edad), prediga su estado de
-salud. La solución es un servicio contenedorizado con Docker que expone una
-función `predecir`. Este repositorio versiona dicha solución y le añade un flujo
-de trabajo profesional sobre GitHub.
+Un médico necesita una herramienta de apoyo que, a partir de al menos tres
+síntomas del paciente (fiebre, dolor, fatiga, duración y edad), sugiera su
+estado de salud. El propósito de este repositorio es:
 
-## Propósito
+- Empaquetar y desplegar localmente esa solución con **Docker**.
+- Mantener un **control de versiones** trazable mediante ramas y PRs.
+- Incorporar nuevos requerimientos médicos y un pipeline de **CI/CD**.
 
-- Mantener un **control de versiones** ordenado de la solución mediante ramas y
-  Pull Requests (PRs).
-- Incorporar **nuevos requerimientos médicos** de forma trazable.
-- Automatizar **pruebas y despliegue** con un pipeline de CI/CD en GitHub Actions.
+> El "modelo" es una función determinista basada en un puntaje ponderado de los
+> síntomas. No se entrena un modelo de ML real; el foco está en el empaquetado,
+> el despliegue y el flujo de trabajo de MLOps.
 
-## Estructura del repositorio
+## Estados que retorna el modelo
 
-> Se irá completando a medida que se integren las ramas de trabajo.
+A partir de los síntomas, la función retorna uno de estos estados:
+
+- `NO ENFERMO`
+- `ENFERMEDAD LEVE`
+- `ENFERMEDAD AGUDA`
+- `ENFERMEDAD CRÓNICA`
+
+## Estructura del proyecto
 
 ```
 eduardo-mlops-U2/
-├── README.md              # Este archivo (problema, propósito, estructura, uso)
-├── Dockerfile             # Empaquetado del servicio
-├── app/                   # Código del servicio (función predecir + API/web Flask)
-├── tests/                 # Pruebas unitarias (pytest)
-└── .github/workflows/     # Pipelines de CI/CD (GitHub Actions)
+├── Dockerfile
+├── .dockerignore
+├── README.md
+└── app/
+    ├── main.py            # Servicio Flask (web + API)
+    ├── model.py           # Función predecir + estados
+    ├── requirements.txt
+    └── templates/
+        └── index.html     # Formulario web
 ```
 
-## Flujo de trabajo
+## Requisitos
 
-La rama `main` está protegida: los cambios entran únicamente mediante **Pull
-Requests** desde ramas de trabajo. Las ramas previstas son:
+- Docker (>= 20.x)
 
-| Rama | Propósito |
-| --- | --- |
-| `solución-inicial` | Solución de la Unidad 1 (servicio Docker + función `predecir`). |
-| `nueva-prediccion` | Nuevo requerimiento: categoría `ENFERMEDAD TERMINAL`. |
-| `reporte-estadisticas` | Nuevo requerimiento: reporte de estadísticas de predicciones. |
-| `añadir-github-actions` | Pipeline de CI/CD con GitHub Actions. |
+## Cómo construir la imagen
+
+Desde la raíz del proyecto:
+
+```bash
+docker build -t eduardo-mlops-u2:latest .
+```
+
+## Cómo correr el contenedor
+
+```bash
+docker run --rm -p 5000:5000 --name predictor eduardo-mlops-u2:latest
+```
+
+El servicio queda expuesto en `http://localhost:5000`.
+
+> **Nota para macOS**: el puerto `5000` lo usa AirPlay Receiver. Si ves el error
+> `address already in use`, mapea otro puerto del host:
+>
+> ```bash
+> docker run --rm -p 8080:5000 --name predictor eduardo-mlops-u2:latest
+> ```
+>
+> Y usa `http://localhost:8080` en lugar de `:5000` en los ejemplos siguientes.
+
+## Cómo obtener respuestas del modelo
+
+### Opción 1 — Página web
+
+Abrir en el navegador <http://localhost:5000>, llenar el formulario con los
+síntomas y presionar **Predecir**.
+
+### Opción 2 — API REST (JSON)
+
+Endpoint: `POST /predecir`. Acepta un JSON con un objeto `sintomas` (dict) o una
+lista.
+
+```bash
+curl -X POST http://localhost:5000/predecir \
+     -H "Content-Type: application/json" \
+     -d '{"sintomas": {"fiebre": 38.5, "dolor": 6, "fatiga": 7, "duracion_dias": 40, "edad": 65}}'
+```
+
+Respuesta:
+
+```json
+{
+  "prediccion": "ENFERMEDAD CRÓNICA",
+  "entrada": {"fiebre": 38.5, "dolor": 6, "fatiga": 7, "duracion_dias": 40, "edad": 65}
+}
+```
+
+### Verificación de los estados
+
+| Entrada                                                      | Estado esperado     |
+| ------------------------------------------------------------ | ------------------- |
+| `{fiebre: 36.5, dolor: 0, fatiga: 0}`                        | NO ENFERMO          |
+| `{fiebre: 38.0, dolor: 2, fatiga: 2}`                        | ENFERMEDAD LEVE     |
+| `{fiebre: 39.5, dolor: 7, fatiga: 8, duracion: 3}`           | ENFERMEDAD AGUDA    |
+| `{fiebre: 38.5, dolor: 6, fatiga: 7, duracion: 60, edad: 70}`| ENFERMEDAD CRÓNICA  |
+
+### Health check
+
+```bash
+curl http://localhost:5000/health
+# {"status": "ok"}
+```
+
+## Detalle de la función `predecir`
+
+Ver [`app/model.py`](app/model.py). La lógica:
+
+1. Calcula un **puntaje** ponderado a partir de fiebre (>37.5 °C), dolor, fatiga
+   y edad (>=60).
+2. Si el puntaje es bajo → `NO ENFERMO`.
+3. Si es moderado → `ENFERMEDAD LEVE`.
+4. Si es alto y la duración de los síntomas es >= 30 días → `ENFERMEDAD CRÓNICA`.
+5. Si es alto y la duración es corta → `ENFERMEDAD AGUDA`.
+
+## Flujo de trabajo del repositorio
+
+La rama `main` se mantiene protegida y los cambios entran mediante Pull Requests
+desde ramas de trabajo (`solución-inicial`, `nueva-prediccion`,
+`reporte-estadisticas`, `añadir-github-actions`).
