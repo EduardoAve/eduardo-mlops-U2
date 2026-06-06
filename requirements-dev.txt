@@ -1,0 +1,2 @@
+# Dependencias para desarrollo y pruebas (CI).
+pytest>=8.0
