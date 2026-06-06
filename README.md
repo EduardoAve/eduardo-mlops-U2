@@ -27,6 +27,7 @@ A partir de los síntomas, la función retorna uno de estos estados:
 - `ENFERMEDAD LEVE`
 - `ENFERMEDAD AGUDA`
 - `ENFERMEDAD CRÓNICA`
+- `ENFERMEDAD TERMINAL`
 
 ## Estructura del proyecto
 
@@ -107,6 +108,7 @@ Respuesta:
 | `{fiebre: 38.0, dolor: 2, fatiga: 2}`                        | ENFERMEDAD LEVE     |
 | `{fiebre: 39.5, dolor: 7, fatiga: 8, duracion: 3}`           | ENFERMEDAD AGUDA    |
 | `{fiebre: 38.5, dolor: 6, fatiga: 7, duracion: 60, edad: 70}`| ENFERMEDAD CRÓNICA  |
+| `{fiebre: 41, dolor: 10, fatiga: 10, duracion: 200, edad: 80}`| ENFERMEDAD TERMINAL |
 
 ### Health check
 
@@ -123,8 +125,9 @@ Ver [`app/model.py`](app/model.py). La lógica:
    y edad (>=60).
 2. Si el puntaje es bajo → `NO ENFERMO`.
 3. Si es moderado → `ENFERMEDAD LEVE`.
-4. Si es alto y la duración de los síntomas es >= 30 días → `ENFERMEDAD CRÓNICA`.
-5. Si es alto y la duración es corta → `ENFERMEDAD AGUDA`.
+4. Si el puntaje es extremo (>= 14) y la condición es crónica → `ENFERMEDAD TERMINAL`.
+5. Si es alto y la duración de los síntomas es >= 30 días → `ENFERMEDAD CRÓNICA`.
+6. Si es alto y la duración es corta → `ENFERMEDAD AGUDA`.
 
 ## Flujo de trabajo del repositorio
 

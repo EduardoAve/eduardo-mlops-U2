@@ -2,15 +2,16 @@
 Función "modelo" simulada para el Taller 1 de MLOps.
 
 No se entrena un modelo real. La función toma síntomas del paciente y
-retorna uno de cuatro estados posibles:
+retorna uno de cinco estados posibles:
 
     - NO ENFERMO
     - ENFERMEDAD LEVE
     - ENFERMEDAD AGUDA
     - ENFERMEDAD CRÓNICA
+    - ENFERMEDAD TERMINAL
 
 La lógica usa un puntaje ponderado a partir de los síntomas para
-garantizar que cada uno de los cuatro estados sea alcanzable según
+garantizar que cada uno de los cinco estados sea alcanzable según
 los parámetros de entrada.
 """
 
@@ -21,6 +22,7 @@ ESTADOS = [
     "ENFERMEDAD LEVE",
     "ENFERMEDAD AGUDA",
     "ENFERMEDAD CRÓNICA",
+    "ENFERMEDAD TERMINAL",
 ]
 
 SintomasInput = Union[Dict[str, float], List[float]]
@@ -57,7 +59,7 @@ def predecir(sintomas: SintomasInput) -> str:
         - edad:          edad del paciente en años
 
     Retorna uno de: NO ENFERMO, ENFERMEDAD LEVE, ENFERMEDAD AGUDA,
-    ENFERMEDAD CRÓNICA.
+    ENFERMEDAD CRÓNICA, ENFERMEDAD TERMINAL.
     """
     datos = _normalizar_entrada(sintomas)
 
@@ -79,10 +81,18 @@ def predecir(sintomas: SintomasInput) -> str:
     # La duración de los síntomas decide entre estado agudo y crónico.
     es_cronico = duracion >= 30
 
+    # Nuevo requerimiento (Unidad 2): la categoría ENFERMEDAD TERMINAL se
+    # alcanza cuando el cuadro es de gravedad extrema (puntaje muy alto) y
+    # además prolongado (crónico). Es el escalón más severo del modelo.
+    GRAVEDAD_TERMINAL = 14.0
+    es_terminal = es_cronico and puntaje >= GRAVEDAD_TERMINAL
+
     if puntaje < 2.0:
         return "NO ENFERMO"
     if puntaje < 5.0:
         return "ENFERMEDAD LEVE"
+    if es_terminal:
+        return "ENFERMEDAD TERMINAL"
     if es_cronico:
         return "ENFERMEDAD CRÓNICA"
     return "ENFERMEDAD AGUDA"
